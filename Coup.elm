@@ -4,20 +4,23 @@ import Html exposing (Html, button, div, text, ul, li)
 import Html.Attributes exposing (class)
 import Html.Events exposing (onClick)
 import List as List
+import Platform.Cmd as Cmd
+import Random as Random
+import Random.List as RandomList
 
 
 main : Program Never Model Msg
 main =
-    Html.beginnerProgram
-        { model = model
+    Html.program
+        { init = init
         , view = view
         , update = update
+        , subscriptions = subscriptions
         }
 
 
-type Msg
-    = Increment
-    | Decrement
+
+-- MODEL
 
 
 type alias Model =
@@ -29,6 +32,11 @@ type alias Model =
 
 type alias Deck =
     List Card
+
+
+init : ( Model, Cmd Msg )
+init =
+    ( Model 0 "" deck, Cmd.none )
 
 
 deck : Deck
@@ -74,19 +82,44 @@ type Counter
     | NoCounter
 
 
-model : Model
-model =
-    Model 0 "" deck
+
+-- UPDATE
 
 
-update : Msg -> Model -> Model
+type Msg
+    = Increment
+    | Decrement
+    | ShuffleDeck
+    | NewDeck Deck
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         Increment ->
-            { model | num = model.num + 1 }
+            ( { model | num = model.num + 1 }, Cmd.none )
 
         Decrement ->
-            { model | num = model.num - 1 }
+            ( { model | num = model.num - 1 }, Cmd.none )
+
+        ShuffleDeck ->
+            ( model, Random.generate NewDeck (RandomList.shuffle model.deck) )
+
+        NewDeck newDeck ->
+            ( { model | deck = newDeck }, Cmd.none )
+
+
+
+-- SUBSCRIPTIONS
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Sub.none
+
+
+
+-- VIEW
 
 
 deckView : Deck -> Html Msg
@@ -108,7 +141,10 @@ cardView card =
 view : Model -> Html Msg
 view model =
     div []
-        [ div [] [ deckView model.deck ]
+        [ div []
+            [ deckView model.deck
+            , button [ onClick ShuffleDeck ] [ text "Shuffle" ]
+            ]
         , div []
             [ button [ onClick Decrement ] [ text "-" ]
             , div [] [ text (toString model.num) ]
