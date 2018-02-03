@@ -1,8 +1,9 @@
 module Main exposing (..)
 
-import Html exposing (Html, button, div, text, ul, li)
-import Html.Attributes exposing (class)
-import Html.Events exposing (onClick)
+import Html exposing (..)
+import Html.Attributes exposing (..)
+import Html.Events exposing (..)
+import Json.Decode as JsonDecode
 import List as List
 import Platform.Cmd as Cmd
 import Random as Random
@@ -27,16 +28,31 @@ type alias Model =
     { num : Int
     , text : String
     , deck : Deck
+    , players : Players
+    , started : Bool
+    , newPlayerName : String
     }
-
-
-type alias Deck =
-    List Card
 
 
 init : ( Model, Cmd Msg )
 init =
-    ( Model 0 "" deck, Cmd.none )
+    ( Model 0 "" deck [] False "", Cmd.none )
+
+
+type State
+    = Open
+    | Closed
+
+
+type alias Players =
+    List Player
+
+
+type alias Player =
+    { name : String
+    , coins : Int
+    , cards : List Card
+    }
 
 
 deck : Deck
@@ -48,6 +64,10 @@ deck =
     , Card Duke Take3 BlockForeignAid
     ]
         |> List.concatMap (List.repeat 3)
+
+
+type alias Deck =
+    List Card
 
 
 type alias Card =
@@ -87,26 +107,50 @@ type Counter
 
 
 type Msg
-    = Increment
-    | Decrement
-    | ShuffleDeck
-    | NewDeck Deck
+    = StartGame Deck
+    | ShuffleDeckAndStartGame
+    | AddPlayer
+    | RemovePlayer Player
+    | UpdateNewPlayerName String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        Increment ->
-            ( { model | num = model.num + 1 }, Cmd.none )
+        StartGame newDeck ->
+            ( { model
+                | started = True
+                , deck = newDeck
+              }
+            , Cmd.none
+            )
 
-        Decrement ->
-            ( { model | num = model.num - 1 }, Cmd.none )
+        AddPlayer ->
+            ( { model
+                | players = ((createNewPlayer model.newPlayerName) :: model.players)
+                , newPlayerName = ""
+              }
+            , Cmd.none
+            )
 
-        ShuffleDeck ->
-            ( model, Random.generate NewDeck (RandomList.shuffle model.deck) )
+        RemovePlayer player ->
+            ( { model
+                | players =
+                    List.filter (\p -> not (p == player)) model.players
+              }
+            , Cmd.none
+            )
 
-        NewDeck newDeck ->
-            ( { model | deck = newDeck }, Cmd.none )
+        UpdateNewPlayerName str ->
+            ( { model | newPlayerName = str }, Cmd.none )
+
+        ShuffleDeckAndStartGame ->
+            ( model, Random.generate StartGame (RandomList.shuffle model.deck) )
+
+
+createNewPlayer : String -> Player
+createNewPlayer name =
+    Player name 2 []
 
 
 
@@ -122,32 +166,92 @@ subscriptions model =
 -- VIEW
 
 
+view : Model -> Html Msg
+view model =
+    if model.started then
+        gameView model
+    else
+        lobbyView model
+
+
+lobbyView : Model -> Html Msg
+lobbyView model =
+    div [ class "lobby" ]
+        [ h2 [] [ text "Welcome to Coup!" ]
+        , lobbyInputView model.newPlayerName
+        , playersView model.players
+        , startView (List.length model.players)
+        ]
+
+
+lobbyInputView : String -> Html Msg
+lobbyInputView name =
+    input
+        [ class "new-player"
+        , placeholder "Who's playing?"
+        , autofocus True
+        , value name
+        , onInput UpdateNewPlayerName
+        , onEnter AddPlayer
+        ]
+        []
+
+
+startView : Int -> Html Msg
+startView numPlayers =
+    if 1 < numPlayers && numPlayers <= 5 then
+        button [ onClick ShuffleDeckAndStartGame ] [ text "Start" ]
+    else
+        text "Need 2 to 5 players to start a game."
+
+
+onEnter : Msg -> Attribute Msg
+onEnter msg =
+    let
+        isEnter code =
+            if code == 13 then
+                JsonDecode.succeed msg
+            else
+                JsonDecode.fail "not ENTER"
+    in
+        on "keydown" (JsonDecode.andThen isEnter keyCode)
+
+
+gameView : Model -> Html Msg
+gameView model =
+    div []
+        [ playersView model.players
+        , deckView model.deck
+        ]
+
+
+playersView : Players -> Html Msg
+playersView players =
+    div []
+        [ h2 [] [ text "The Players" ]
+        , ul [] (List.map playerView players)
+        ]
+
+
+playerView : Player -> Html Msg
+playerView player =
+    li [ class "player" ]
+        [ text (toString player.name)
+        , button [ onClick (RemovePlayer player) ] [ text "x" ]
+        ]
+
+
 deckView : Deck -> Html Msg
 deckView deck =
-    ul []
-        (List.map
-            cardView
-            deck
-        )
+    div []
+        [ h2 [] [ text "The Deck" ]
+        , ul [] (List.map cardView deck)
+        , button [ onClick ShuffleDeckAndStartGame ] [ text "Shuffle" ]
+        ]
 
 
 cardView : Card -> Html Msg
 cardView card =
     li [ class "card" ]
         [ text (toString card.name)
-        ]
-
-
-view : Model -> Html Msg
-view model =
-    div []
-        [ div []
-            [ deckView model.deck
-            , button [ onClick ShuffleDeck ] [ text "Shuffle" ]
-            ]
-        , div []
-            [ button [ onClick Decrement ] [ text "-" ]
-            , div [] [ text (toString model.num) ]
-            , button [ onClick Increment ] [ text "+" ]
-            ]
         ]
