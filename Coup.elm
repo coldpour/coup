@@ -289,8 +289,8 @@ gamePlayersView players =
 gamePlayerView : Player -> Html Msg
 gamePlayerView player =
     li [ class "game-player" ]
-        [ cardsView player.cards
-        , text ((toString player.name) ++ "- $" ++ (toString player.coins))
+        [ text ((toString player.name) ++ "- $" ++ (toString player.coins))
+        , cardsView player.cards
         ]
 
 
