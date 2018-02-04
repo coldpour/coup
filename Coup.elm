@@ -5,6 +5,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Json.Decode as JsonDecode
 import List as List
+import Maybe as Maybe
 import Platform.Cmd as Cmd
 import Random as Random
 import Random.List as RandomList
@@ -36,7 +37,7 @@ type alias Model =
 
 init : ( Model, Cmd Msg )
 init =
-    ( Model 0 "" deck [] False "", Cmd.none )
+    ( Model 0 "" unshuffledDeck [] False "", Cmd.none )
 
 
 type State
@@ -51,12 +52,12 @@ type alias Players =
 type alias Player =
     { name : String
     , coins : Int
-    , cards : List Card
+    , cards : List Card -- TODO: make video about switching List to Map
     }
 
 
-deck : Deck
-deck =
+unshuffledDeck : Deck
+unshuffledDeck =
     [ Card Ambassador Exchange BlockSteal
     , Card Assassin Assassinate NoCounter
     , Card Captain Steal BlockSteal
@@ -117,17 +118,23 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        StartGame newDeck ->
-            ( { model
-                | started = True
-                , deck = newDeck
-              }
-            , Cmd.none
-            )
+        StartGame shuffledDeck ->
+            let
+                { playersWithCards, remainingDeck } =
+                    deal shuffledDeck model.players
+            in
+                ( { model
+                    | started = True
+                    , players = playersWithCards
+                    , deck = remainingDeck
+                  }
+                , Cmd.none
+                )
 
         AddPlayer ->
             ( { model
-                | players = ((createNewPlayer model.newPlayerName) :: model.players)
+                | players =
+                    ((createNewPlayer model.newPlayerName) :: model.players)
                 , newPlayerName = ""
               }
             , Cmd.none
@@ -137,6 +144,8 @@ update msg model =
             ( { model
                 | players =
                     List.filter (\p -> not (p == player)) model.players
+
+                -- TODO: all players with the same name will get removed
               }
             , Cmd.none
             )
@@ -146,6 +155,40 @@ update msg model =
 
         ShuffleDeckAndStartGame ->
             ( model, Random.generate StartGame (RandomList.shuffle model.deck) )
+
+
+deal : Deck -> Players -> { playersWithCards : Players, remainingDeck : Deck }
+deal cards players =
+    dealCards cards players []
+
+
+dealCards : Deck -> Players -> Players -> { playersWithCards : Players, remainingDeck : Deck }
+dealCards deck playersWithoutCards playersWithCards =
+    let
+        cardsPerPlayer =
+            2
+
+        dealtPlayer =
+            Maybe.withDefault (createNewPlayer "unknown") (List.head playersWithoutCards)
+
+        remainingPlayers =
+            List.drop 1 playersWithoutCards
+
+        dealtCards =
+            List.take cardsPerPlayer deck
+
+        remainingDeck =
+            List.drop cardsPerPlayer deck
+    in
+        if [] == playersWithoutCards then
+            { playersWithCards = playersWithCards
+            , remainingDeck = remainingDeck
+            }
+        else
+            dealCards
+                remainingDeck
+                remainingPlayers
+                ({ dealtPlayer | cards = dealtCards } :: playersWithCards)
 
 
 createNewPlayer : String -> Player
@@ -179,22 +222,24 @@ lobbyView model =
     div [ class "lobby" ]
         [ h2 [] [ text "Welcome to Coup!" ]
         , lobbyInputView model.newPlayerName
-        , playersView model.players
         , startView (List.length model.players)
+        , lobbyPlayersView model.players
         ]
 
 
 lobbyInputView : String -> Html Msg
 lobbyInputView name =
-    input
-        [ class "new-player"
-        , placeholder "Who's playing?"
-        , autofocus True
-        , value name
-        , onInput UpdateNewPlayerName
-        , onEnter AddPlayer
+    div []
+        [ input
+            [ class "new-player"
+            , placeholder "Who's playing?"
+            , autofocus True
+            , value name
+            , onInput UpdateNewPlayerName
+            , onEnter AddPlayer
+            ]
+            []
         ]
-        []
 
 
 startView : Int -> Html Msg
@@ -219,23 +264,39 @@ onEnter msg =
 
 gameView : Model -> Html Msg
 gameView model =
-    div []
-        [ playersView model.players
+    div [ class "game" ]
+        [ gamePlayersView model.players
         , deckView model.deck
         ]
 
 
-playersView : Players -> Html Msg
-playersView players =
-    div []
+gamePlayersView : Players -> Html Msg
+gamePlayersView players =
+    div [ class "game-players" ]
         [ h2 [] [ text "The Players" ]
-        , ul [] (List.map playerView players)
+        , ol [] (List.map gamePlayerView players)
         ]
 
 
-playerView : Player -> Html Msg
-playerView player =
-    li [ class "player" ]
+gamePlayerView : Player -> Html Msg
+gamePlayerView player =
+    li [ class "game-player" ]
+        [ cardsView player.cards
+        , text (toString player.name)
+        ]
+
+
+lobbyPlayersView : Players -> Html Msg
+lobbyPlayersView players =
+    div [ class "lobby-players" ]
+        [ h2 [] [ text "The Players" ]
+        , ol [] (List.map lobbyPlayerView players)
+        ]
+
+
+lobbyPlayerView : Player -> Html Msg
+lobbyPlayerView player =
+    li [ class "lobby-player" ]
         [ text (toString player.name)
         , button [ onClick (RemovePlayer player) ] [ text "x" ]
         ]
@@ -245,9 +306,13 @@ deckView : Deck -> Html Msg
 deckView deck =
     div []
         [ h2 [] [ text "The Deck" ]
-        , ul [] (List.map cardView deck)
-        , button [ onClick ShuffleDeckAndStartGame ] [ text "Shuffle" ]
+        , cardsView deck
         ]
+
+
+cardsView : Deck -> Html Msg
+cardsView cards =
+    ol [] (List.map cardView cards)
 
 
 cardView : Card -> Html Msg
