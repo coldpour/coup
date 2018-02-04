@@ -26,9 +26,7 @@ main =
 
 
 type alias Model =
-    { num : Int
-    , text : String
-    , deck : Deck
+    { deck : Deck
     , players : Players
     , started : Bool
     , newPlayerName : String
@@ -37,23 +35,7 @@ type alias Model =
 
 init : ( Model, Cmd Msg )
 init =
-    ( Model 0 "" unshuffledDeck [] False "", Cmd.none )
-
-
-type State
-    = Open
-    | Closed
-
-
-type alias Players =
-    List Player
-
-
-type alias Player =
-    { name : String
-    , coins : Int
-    , cards : List Card -- TODO: make video about switching List to Map
-    }
+    ( Model unshuffledDeck noPlayers unStarted blankName, Cmd.none )
 
 
 unshuffledDeck : Deck
@@ -65,6 +47,32 @@ unshuffledDeck =
     , Card Duke Take3 BlockForeignAid
     ]
         |> List.concatMap (List.repeat 3)
+
+
+noPlayers : Players
+noPlayers =
+    []
+
+
+unStarted : Bool
+unStarted =
+    False
+
+
+blankName : String
+blankName =
+    ""
+
+
+type alias Players =
+    List Player
+
+
+type alias Player =
+    { name : String
+    , coins : Int
+    , cards : List Card -- TODO: make video about switching List to Map
+    }
 
 
 type alias Deck =
@@ -282,7 +290,7 @@ gamePlayerView : Player -> Html Msg
 gamePlayerView player =
     li [ class "game-player" ]
         [ cardsView player.cards
-        , text (toString player.name)
+        , text ((toString player.name) ++ "- $" ++ (toString player.coins))
         ]
 
 
