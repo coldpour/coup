@@ -1,0 +1,34 @@
+{
+  "name": "coup",
+  "version": "0.0.1",
+  "description": "the game of coup written in Elm-lang",
+  "main": "webpack.config.js",
+  "scripts": {
+    "build": "webpack",
+    "watch": "webpack --watch",
+    "start": "webpack-dev-server --port 8000"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/coldpour/coup.git"
+  },
+  "keywords": [
+    "elm",
+    "coup"
+  ],
+  "author": "Mike Holm",
+  "license": "BSD3",
+  "bugs": {
+    "url": "https://github.com/coldpour/coup/issues"
+  },
+  "homepage": "https://github.com/coldpour/coup#readme",
+  "dependencies": {
+    "css-loader": "^0.25.0",
+    "elm": "^0.18.0",
+    "elm-webpack-loader": "^3.1.0",
+    "file-loader": "^0.9.0",
+    "style-loader": "^0.13.1",
+    "webpack": "^1.13.2",
+    "webpack-dev-server": "^1.16.2"
+  }
+}
