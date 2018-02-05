@@ -21,7 +21,7 @@
   "bugs": {
     "url": "https://github.com/coldpour/coup/issues"
   },
-  "homepage": "https://github.com/coldpour/coup#readme",
+  "homepage": "https://coup-coldpour.netlify.com/",
   "dependencies": {
     "css-loader": "^0.25.0",
     "elm": "^0.18.0",
